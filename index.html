@@ -3,13 +3,66 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>배당 포트폴리오</title>
+  <title>매매일지</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
-  <style>html,body{margin:0;padding:0;background:#0E1512;}</style>
+  <style>
+  :root{--bg:#0E1512;--card:#15201B;--card2:#1B2A23;--line:#294036;--ink:#EAF3EE;--muted:#8FB3A3;--brand:#2FA37A;--brand2:#1E7D5C;--up:#E5695B;--down:#4C8FE3;--gold:#E7B84B;}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:'Pretendard',-apple-system,system-ui,sans-serif}
+  .tj{padding:16px 12px 60px}
+  .wrap{max-width:960px;margin:0 auto}
+  .head{display:flex;align-items:center;gap:10px;margin:4px 2px 16px}
+  .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--brand),var(--brand2));display:flex;align-items:center;justify-content:center;font-weight:900;color:#04150F}
+  .title{font-size:19px;font-weight:800;letter-spacing:-.3px}
+  .sub{font-size:12px;color:var(--muted)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px;margin-bottom:13px}
+  .card h2{margin:0 0 3px;font-size:15.5px;font-weight:800}
+  .hint{margin:0 0 12px;font-size:12px;color:var(--muted)}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .kpi{background:var(--card2);border-radius:11px;padding:12px 13px}
+  .kpi .lab{font-size:11.5px;color:var(--muted);margin-bottom:5px}
+  .kpi .val{font-size:20px;font-weight:800;letter-spacing:-.5px}
+  .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .seg{display:inline-flex;background:var(--card2);border-radius:9px;padding:3px;gap:2px}
+  .seg button{border:none;background:transparent;color:var(--muted);font-weight:700;font-size:12.5px;padding:6px 12px;border-radius:7px;cursor:pointer}
+  .seg button.on{background:var(--brand);color:#04150F}
+  .navm{display:inline-flex;align-items:center;gap:4px;background:var(--card2);border-radius:9px;padding:3px 6px}
+  .navm button{border:none;background:transparent;color:var(--ink);cursor:pointer;font-size:15px;padding:2px 8px;border-radius:6px}
+  .navm .m{font-weight:800;font-size:13.5px;min-width:78px;text-align:center}
+  textarea.ta{width:100%;min-height:120px;background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:10px;color:var(--ink);font-size:13px;font-family:inherit;outline:none;resize:vertical}
+  textarea.ta:focus{border-color:var(--brand)}
+  .field{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:9px 10px;color:var(--ink);font-size:14px;outline:none}
+  .field:focus{border-color:var(--brand)}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  label.lb{font-size:11.5px;color:var(--muted);display:block;margin:0 0 4px 2px}
+  .btn{border:none;border-radius:10px;padding:11px 14px;font-weight:800;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+  .btn.pri{background:var(--brand);color:#04150F;width:100%}
+  .btn.gho{background:var(--card2);color:var(--ink);border:1px solid var(--line)}
+  .scroll{overflow-x:auto;margin:0 -4px}
+  table.tbl{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
+  .tbl th{color:var(--muted);font-weight:700;text-align:right;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap;font-size:11.5px}
+  .tbl th:first-child,.tbl td:first-child{text-align:left}
+  .tbl td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  .tbl tr:last-child td{border-bottom:none}
+  .buy{color:var(--up)}.sell{color:var(--down)}.gold{color:var(--gold)}
+  .pill{font-size:11px;font-weight:800;border-radius:6px;padding:2px 7px}
+  .pill.b{color:var(--up);background:rgba(229,105,91,.14)}
+  .pill.s{color:var(--down);background:rgba(76,143,227,.14)}
+  .icell{background:transparent;border:1px solid transparent;border-radius:7px;padding:5px 6px;color:var(--muted);font-size:13px;width:110px;text-align:left;outline:none}
+  .icell:hover{border-color:var(--line)}.icell:focus{border-color:var(--brand);background:var(--card2)}
+  .del{background:transparent;border:none;color:var(--up);cursor:pointer;padding:4px;font-size:15px}
+  .empty{color:var(--muted);text-align:center;padding:22px;font-size:13px}
+  .warn{background:rgba(231,184,75,.1);border:1px solid var(--gold);color:var(--gold);border-radius:9px;padding:9px 11px;font-size:12.5px;margin-bottom:10px}
+  .err{color:var(--up)}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#04150F;border:1px solid var(--brand);color:var(--brand);padding:9px 16px;border-radius:20px;font-size:13px;font-weight:700;z-index:50}
+  code.fmt{background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:12px;color:var(--gold)}
+  </style>
 </head>
 <body>
   <div id="root"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
