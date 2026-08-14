@@ -145,19 +145,46 @@
   }
 
   // ---------- render ----------
-  function kpiBlock() {
+  // 이동평균법 실현손익: 전체 기록을 종목별·시간순으로 처리해 각 매도의 (매도가-평균매수가)×수량 계산
+  function realizedMap() {
+    var all = state.trades.slice().sort(function (a, b) {
+      var da = a.date || "", db = b.date || "";
+      if (da !== db) return da < db ? -1 : 1;
+      return (a.id || "") < (b.id || "") ? -1 : 1;
+    });
+    var pos = {}, out = {};
+    all.forEach(function (t) {
+      var k = t.name || "?";
+      if (!pos[k]) pos[k] = { sh: 0, avg: 0 };
+      var p = pos[k], q = num(t.qty), pr = num(t.price);
+      if (t.side === "매수") {
+        var tot = p.sh * p.avg + q * pr;
+        p.sh += q;
+        p.avg = p.sh > 0 ? tot / p.sh : 0;
+      } else if (t.side === "매도") {
+        out[t.id] = { realized: (pr - p.avg) * q, cost: p.avg * q };
+        p.sh -= q;
+        if (p.sh < 0) p.sh = 0;
+      }
+    });
+    return out;
+  }
+
+  function kpiBlock(rmap) {
     var f = filtered();
-    var buyAmt = 0, sellAmt = 0, fee = 0;
+    var buyAmt = 0, sellAmt = 0, fee = 0, realized = 0, soldCost = 0;
     f.forEach(function (t) {
       var a = num(t.amount) || num(t.qty) * num(t.price);
-      if (t.side === "매수") buyAmt += a; else if (t.side === "매도") sellAmt += a;
+      if (t.side === "매수") buyAmt += a;
+      else if (t.side === "매도") { sellAmt += a; if (rmap[t.id]) { realized += rmap[t.id].realized; soldCost += rmap[t.id].cost; } }
       fee += num(t.fee);
     });
-    var net = sellAmt - buyAmt;
+    var roi = soldCost > 0 ? realized / soldCost * 100 : 0;
     return '<div class="kpis">' +
+      kpi("실현손익", (realized >= 0 ? "+" : "") + fmt(realized) + " 원", realized >= 0 ? "buy" : "sell") +
+      kpi("실현 수익률", (roi >= 0 ? "+" : "") + (Math.round(roi * 10) / 10) + "%", roi >= 0 ? "buy" : "sell") +
       kpi("매수 금액", fmt(buyAmt) + " 원", "") +
       kpi("매도 금액", fmt(sellAmt) + " 원", "") +
-      kpi("순매매(매도-매수)", (net >= 0 ? "+" : "") + fmt(net), net >= 0 ? "sell" : "buy") +
       kpi("거래 건수", f.length + " 건", "") +
       "</div>" +
       (fee > 0 ? '<div class="sub" style="margin-top:8px">수수료·세금 합계 ' + fmt(fee) + "원</div>" : "");
@@ -189,34 +216,38 @@
       "</tr></thead><tbody>" + rows + "</tbody></table></div>";
   }
 
-  function aggBlock() {
+  function aggBlock(rmap) {
     var f = filtered();
     if (f.length === 0) return "";
     var g = {};
     f.forEach(function (t) {
       var k = t.name || "(종목없음)";
-      if (!g[k]) g[k] = { bq: 0, ba: 0, sq: 0, sa: 0 };
+      if (!g[k]) g[k] = { bq: 0, ba: 0, sq: 0, sa: 0, rz: 0, rc: 0 };
       var a = num(t.amount) || num(t.qty) * num(t.price);
       if (t.side === "매수") { g[k].bq += num(t.qty); g[k].ba += a; }
-      else if (t.side === "매도") { g[k].sq += num(t.qty); g[k].sa += a; }
+      else if (t.side === "매도") { g[k].sq += num(t.qty); g[k].sa += a; if (rmap[t.id]) { g[k].rz += rmap[t.id].realized; g[k].rc += rmap[t.id].cost; } }
     });
-    var keys = Object.keys(g).sort(function (x, y) { return (g[y].ba + g[y].sa) - (g[x].ba + g[x].sa); });
+    var keys = Object.keys(g).sort(function (x, y) { return g[y].rz - g[x].rz; });
     var rows = keys.map(function (k) {
       var v = g[k];
       var bavg = v.bq ? v.ba / v.bq : 0, savg = v.sq ? v.sa / v.sq : 0;
       var netQ = v.bq - v.sq;
+      var roi = v.rc > 0 ? v.rz / v.rc * 100 : 0;
+      var pcls = v.rz >= 0 ? "buy" : "sell";
       return "<tr>" +
         '<td style="text-align:left;font-weight:700">' + esc(k) + "</td>" +
         '<td class="buy">' + fmt(v.bq) + "</td>" +
         "<td>" + (bavg ? fmt(bavg) : "-") + "</td>" +
         '<td class="sell">' + fmt(v.sq) + "</td>" +
         "<td>" + (savg ? fmt(savg) : "-") + "</td>" +
+        '<td class="' + (v.sq > 0 ? pcls : "") + '">' + (v.sq > 0 ? ((v.rz >= 0 ? "+" : "") + fmt(v.rz)) : "-") + "</td>" +
+        '<td class="' + (v.sq > 0 ? pcls : "") + '">' + (v.sq > 0 && v.rc > 0 ? ((roi >= 0 ? "+" : "") + (Math.round(roi * 10) / 10) + "%") : "-") + "</td>" +
         "<td>" + fmt(netQ) + "</td>" +
         "</tr>";
     }).join("");
-    return '<div class="card"><h2>종목별 집계</h2><p class="hint">분할매수·분할매도를 종목별로 합산 — 평균 단가와 순수량으로 복기하기 좋아요.</p>' +
-      '<div class="scroll"><table class="tbl" style="min-width:480px"><thead><tr>' +
-      "<th>종목</th><th>매수수량</th><th>평매수가</th><th>매도수량</th><th>평매도가</th><th>순수량</th>" +
+    return '<div class="card"><h2>종목별 집계</h2><p class="hint">이동평균법 실현손익 — (매도가 − 평균매수가) × 매도수량. 증권사(토스) 방식과 같아요. 정확하려면 그 종목 첫 매수부터 기록이 있어야 해요.</p>' +
+      '<div class="scroll"><table class="tbl" style="min-width:620px"><thead><tr>' +
+      "<th>종목</th><th>매수수량</th><th>평매수가</th><th>매도수량</th><th>평매도가</th><th>실현손익</th><th>수익률</th><th>순수량</th>" +
       "</tr></thead><tbody>" + rows + "</tbody></table></div></div>";
   }
 
@@ -246,6 +277,7 @@
     if (!state.loaded) { document.getElementById("dyn").innerHTML = '<div class="empty">불러오는 중…</div>'; return; }
     var ms = months();
     var monthLabel = state.month === "all" ? "전체" : state.month.replace("-", ".");
+    var rmap = realizedMap();
     var html =
       (state.err ? '<div class="warn">' + esc(state.err) + "</div>" : "") +
       '<div class="card"><div class="row" style="justify-content:space-between">' +
@@ -255,8 +287,8 @@
         "</div>" +
         '<button class="btn gho" data-mv="all" style="padding:8px 12px">전체기간</button>' +
       "</div></div>" +
-      '<div class="card">' + kpiBlock() + "</div>" +
-      aggBlock() +
+      '<div class="card">' + kpiBlock(rmap) + "</div>" +
+      aggBlock(rmap) +
       '<div class="card"><h2>거래 내역 <span class="sub">(' + filtered().length + '건)</span></h2>' + listBlock() + "</div>";
     document.getElementById("dyn").innerHTML = html;
     var pv = document.getElementById("previewArea");
